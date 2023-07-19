@@ -6,9 +6,19 @@ import (
 )
 
 func main() {
-	err := buildscript.Generate("owl-messager",
+	err := buildscript.Generate(
 		"lishimeng",
-		"cmd/owl-messager/main.go", true)
+		buildscript.Application{
+			Name:    "owl-messager",
+			AppPath: "cmd/owl-messager",
+			HasUI:   false,
+		},
+		buildscript.Application{
+			Name:    "owl-console",
+			AppPath: "cmd/console",
+			HasUI:   true,
+		},
+	)
 	if err != nil {
 		fmt.Println(err)
 	} else {

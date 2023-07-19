@@ -1,63 +1,61 @@
 package sdk
 
 import (
-	"bytes"
 	"encoding/json"
+	"fmt"
+	"github.com/lishimeng/app-starter/tool"
 	"github.com/lishimeng/go-log"
-	"github.com/lishimeng/owl/internal/messager/msg"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"time"
+	"github.com/lishimeng/owl-messager/cmd/owl-messager/ddd/open"
+	"github.com/lishimeng/owl-messager/internal/messager/msg"
+	"github.com/pkg/errors"
+	"net/url"
 )
 
-const ApiPath = "/v2/messages/"
+const ApiSendMessage = "/messages/"
 
-//MessageClient 消息服务
-type MessageClient struct {
-	Host     string // 消息服务主机地址. 如, "http://127.0.0.1/api"
-	category string // 消息类型. "mail","sms","apns"
+const ApiCredential = "/open/oauth2/token"
+
+const (
+	CodeNotAllow int = 401
+	CodeNotFound int = 404
+	CodeSuccess  int = 200
+)
+
+// messageClient 消息服务
+type messageClient struct {
+	host       string // 消息服务主机地址. 如, "http://127.0.0.1"
+	credential string
+	appId      string
+	secret     string
 }
 
-// NewClient 初始化邮件服务信息。host: 邮件服务主机地址
-func NewClient(host string) (m *MessageClient) {
-	return &MessageClient{
-		Host: host,
+func (m *messageClient) SendMail(request MailRequest) (response Response, err error) {
+	if debugEnable {
+		log.Debug("sendMail to: %s", request.Receiver)
 	}
-}
-
-func (m *MessageClient) setCategory(category string) {
-	m.category = category
-}
-
-func (m *MessageClient) getURL() string {
-	return m.Host + ApiPath + "/" + m.category
-}
-
-func (m *MessageClient) SendMail(request MailRequest) (response Response, err error) {
-	log.Debug("sendMail to: %s", request.Receiver)
-	m.setCategory(msg.EmailCategory)
-	response, err = m.send(request)
+	response, err = m.send(msg.EmailCategory, request)
 	if err != nil {
 		log.Debug(err)
 		return
 	}
 	return
 }
-func (m *MessageClient) SendSms(request SmsRequest) (response Response, err error) {
-	log.Debug("sendMail to: %s", request.Receiver)
-	m.setCategory(msg.SmsCategory)
-	response, err = m.send(request)
+func (m *messageClient) SendSms(request SmsRequest) (response Response, err error) {
+	if debugEnable {
+		log.Debug("sendSms to: %s", request.Receiver)
+	}
+	response, err = m.send(msg.SmsCategory, request)
 	if err != nil {
 		log.Debug(err)
 		return
 	}
 	return
 }
-func (m *MessageClient) SendApns(request ApnsRequest) (response Response, err error) {
-	log.Debug("sendMail to: %s", request.Receiver)
-	m.setCategory(msg.ApnsCategory)
-	response, err = m.send(request)
+func (m *messageClient) SendApns(request ApnsRequest) (response Response, err error) {
+	if debugEnable {
+		log.Debug("sendApns to: %s", request.Receiver)
+	}
+	response, err = m.send(msg.ApnsCategory, request)
 	if err != nil {
 		log.Debug(err)
 		return
@@ -65,29 +63,90 @@ func (m *MessageClient) SendApns(request ApnsRequest) (response Response, err er
 	return
 }
 
-func (m *MessageClient) send(request interface{}) (response Response, err error) {
-	url := m.getURL()
-	log.Debug("sendMail url: %s", url)
-	client := &http.Client{Timeout: 8 * time.Second}
+func (m *messageClient) refreshCredential() (response open.CredentialResp, err error) {
+	host, err := url.JoinPath(m.host, ApiCredential)
+	if err != nil {
+		return
+	}
+	if debugEnable {
+		log.Debug("credential url:%s", host)
+	}
+	response, err = getCredential(host, m.appId, m.secret)
+	if err != nil {
+		return
+	}
+	m.credential = response.Token
+	return
+}
+
+func (m *messageClient) send(category string, request any) (response Response, err error) {
 	jsonStr, _ := json.Marshal(request)
-	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonStr))
+	u, err := url.JoinPath(m.host, ApiSendMessage, category)
 	if err != nil {
-		log.Debug("client Post err")
-		return
-	}
-	defer func(Body io.ReadCloser) {
-		err = Body.Close()
-		if err != nil {
-
+		err = errors.Wrap(err, "get url fail")
+		if debugEnable {
+			log.Debug(err)
 		}
-	}(resp.Body)
-
-	result, _ := ioutil.ReadAll(resp.Body)
-	err = json.Unmarshal(result, &response)
-	if err != nil {
-		log.Debug("response Unmarshal err, %+v", response)
 		return
 	}
-	log.Debug("sendMail response: %v", response)
+	if debugEnable {
+		log.Debug("send message url: %s", u)
+	}
+	code, response, err := _send(m.credential, u, jsonStr)
+	if err != nil {
+		err = errors.Wrap(err, "send fail")
+		if debugEnable {
+			log.Debug(err)
+		}
+		return
+	}
+	// http 无异常, 检查response code, 如果CodeNotAllow说明token不正常
+	switch code {
+	case CodeNotAllow:
+		code, response, err = m.resend(u, jsonStr)
+	case CodeSuccess:
+		if debugEnable {
+			log.Debug("credential valid, send success")
+		}
+	default: // not found, redirect ...
+		err = errors.New(fmt.Sprintf("%d", code))
+	}
+
+	if err != nil {
+		err = errors.Wrap(err, "send fail")
+		if debugEnable {
+			log.Debug(err)
+		}
+		return
+	}
+	if code == CodeNotAllow {
+		// 如果还是 CodeNotAllow, 说明token系统出问题了
+		err = errors.New(fmt.Sprintf("%d", CodeNotAllow))
+	}
+	return
+}
+
+func (m *messageClient) resend(u string, data []byte) (code int, response Response, err error) {
+	if debugEnable {
+		log.Debug("credential expired, refresh credential")
+	}
+	credentialResp, err := m.refreshCredential()
+	if err != nil {
+		err = errors.Wrap(err, "can't refresh credential")
+		if debugEnable {
+			log.Debug(err)
+		}
+		return
+	}
+	if credentialResp.Code != float64(tool.RespCodeSuccess) {
+		response.Code = credentialResp.Code
+		response.Message = credentialResp.Message
+		return
+	}
+	// 如果获取了新token,重新发一遍
+	if debugEnable {
+		log.Debug("re_send the message")
+	}
+	code, response, err = _send(m.credential, u, data)
 	return
 }

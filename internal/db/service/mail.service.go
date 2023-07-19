@@ -3,16 +3,17 @@ package service
 import (
 	"github.com/lishimeng/app-starter"
 	persistence "github.com/lishimeng/go-orm"
-	"github.com/lishimeng/owl/internal/db/model"
-	"github.com/lishimeng/owl/internal/db/repo"
-	"github.com/lishimeng/owl/internal/messager/msg"
+	"github.com/lishimeng/owl-messager/internal/db/model"
+	"github.com/lishimeng/owl-messager/internal/db/repo"
+	"github.com/lishimeng/owl-messager/internal/messager/msg"
 )
 
-func CreateMailMessage(sender *model.MailSenderInfo, template model.MailTemplateInfo, templateParams string,
+// CreateMailMessage 创建普通邮件
+func CreateMailMessage(org int, template model.MailTemplateInfo, templateParams string,
 	subject, receiver, cc string) (m model.MessageInfo, err error) {
 	err = app.GetOrm().Transaction(func(ctx persistence.TxContext) (e error) {
 		// create message
-		m, e = repo.CreateMessage(ctx, subject, msg.Email)
+		m, e = repo.CreateMessage(ctx, org, subject, msg.Email)
 		if e != nil {
 			return
 		}
@@ -23,11 +24,12 @@ func CreateMailMessage(sender *model.MailSenderInfo, template model.MailTemplate
 	return
 }
 
-func CreateCloudMailMessage(sender *model.MailSenderInfo, templateId string, templateParams string,
+// CreateCloudMailMessage 创建云邮件, 需要云供应商解析模板
+func CreateCloudMailMessage(org int, templateId string, templateParams string,
 	subject, receiver, cc string) (m model.MessageInfo, err error) {
 	err = app.GetOrm().Transaction(func(ctx persistence.TxContext) (e error) {
 		// create message
-		m, e = repo.CreateMessage(ctx, subject, msg.Email)
+		m, e = repo.CreateMessage(ctx, org, subject, msg.Email)
 		if e != nil {
 			return
 		}
@@ -128,7 +130,7 @@ func UpdateMsi(code, vendor, config string, defaultSender int) (m model.MailSend
 	var cols []string
 	m.Default = defaultSender
 	cols = append(cols, "Default")
-	m.Config = config
+	m.Config = model.SenderConfig(config)
 	cols = append(cols, "Config")
 	m, err = repo.UpdateMailSenderInfo(m, cols...)
 	return

@@ -3,7 +3,7 @@ package repo
 import (
 	"github.com/lishimeng/app-starter"
 	persistence "github.com/lishimeng/go-orm"
-	"github.com/lishimeng/owl/internal/db/model"
+	"github.com/lishimeng/owl-messager/internal/db/model"
 )
 
 // GetSmsTemplateByCode 查询Template
@@ -46,6 +46,7 @@ func DeleteSmsTemplate(id int) (err error) {
 }
 func CreateSmsTemplate(code, name, templateId, params, description, vendor string) (m model.SmsTemplateInfo, err error) {
 	m = model.SmsTemplateInfo{
+		// TODO org
 		Code:            code,
 		Name:            name,
 		Params:          params,
@@ -63,6 +64,7 @@ func CreateSmsTemplate(code, name, templateId, params, description, vendor strin
 }
 func CreateSmsTemplateNew(code, name, templateId, params, description, vendor, signature string, sender int) (m model.SmsTemplateInfo, err error) {
 	m = model.SmsTemplateInfo{
+		// TODO org
 		Code:            code,
 		Name:            name,
 		Params:          params,

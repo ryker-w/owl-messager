@@ -3,10 +3,12 @@ package model
 import "github.com/lishimeng/app-starter"
 
 type MailTemplateInfo struct {
-	app.Pk
+	app.TenantPk
 	Code        string `orm:"column(code);unique"`
 	Name        string `orm:"column(name)"`
 	Body        string `orm:"column(body)"`
+	Cloud       int    `orm:"column(cloud)"`
+	CloudId     string `orm:"column(cloud_id)"`
 	Category    int    `orm:"column(category)"`
 	Description string `orm:"column(description);null"`
 	Vendor      string `orm:"column(vendor);null"` // vendor
@@ -16,6 +18,11 @@ type MailTemplateInfo struct {
 const (
 	MailTemplateEnable  = 1 // enable
 	MailTemplateDisable = 0 // disable
+)
+
+const (
+	MailCloudTemplate  = 1 // enable
+	MailNativeTemplate = 0 // disable
 )
 
 const (

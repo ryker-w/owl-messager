@@ -5,18 +5,17 @@ import (
 	"fmt"
 	"github.com/lishimeng/app-starter"
 	etc2 "github.com/lishimeng/app-starter/etc"
+	"github.com/lishimeng/app-starter/factory"
+	"github.com/lishimeng/app-starter/token"
 	"github.com/lishimeng/go-log"
 	persistence "github.com/lishimeng/go-orm"
-	"github.com/lishimeng/owl/internal/api"
-	"github.com/lishimeng/owl/internal/db/model"
-	"github.com/lishimeng/owl/internal/etc"
-	"github.com/lishimeng/owl/internal/setup"
-	"github.com/lishimeng/owl/static"
-	"net/http"
+	"github.com/lishimeng/owl-messager/cmd/owl-messager/ddd"
+	"github.com/lishimeng/owl-messager/cmd/owl-messager/process"
+	"github.com/lishimeng/owl-messager/internal/etc"
 	"time"
 )
 import _ "github.com/lib/pq"
-import _ "github.com/lishimeng/owl/providers"
+import _ "github.com/lishimeng/owl-messager/providers"
 
 func main() {
 
@@ -30,7 +29,7 @@ func main() {
 	if err != nil {
 		fmt.Println(err)
 	}
-	time.Sleep(time.Second * 2)
+	time.Sleep(time.Millisecond * 50)
 }
 
 func _main() (err error) {
@@ -58,17 +57,25 @@ func _main() (err error) {
 			SSL:       etc.Config.Db.Ssl,
 		}
 
+		issuer := etc.Config.Token.Issuer
+		tokenKey := []byte(etc.Config.Token.Key)
+		builder = builder.EnableTokenValidator(func(inject app.TokenValidatorInjectFunc) {
+			provider := token.NewJwtProvider(token.WithIssuer(issuer),
+				token.WithKey(tokenKey, tokenKey), // hs256的秘钥必须是[]byte
+				token.WithAlg("HS256"),
+				token.WithDefaultTTL(etc.TokenTTL),
+			)
+			storage := token.NewLocalStorage(provider)
+			factory.Add(provider)
+			inject(storage)
+		})
+
 		builder.EnableDatabase(dbConfig.Build(),
-			model.Tables()...).
-			//SetWebLogLevel("debug").
+			ddd.Tables()...).
 			PrintVersion().
-			EnableWeb(etc.Config.Web.Listen, api.Route).
-			EnableStaticWeb(func() http.FileSystem {
-				return http.FS(static.Static)
-			}).
-			//ComponentBefore(setup.JobClearExpireTask).
-			ComponentBefore(setup.BeforeStarted).
-			ComponentAfter(setup.AfterStarted)
+			EnableWeb(etc.Config.Web.Listen, ddd.Route).
+			ComponentBefore(process.BeforeStarted).
+			ComponentAfter(process.AfterStarted)
 
 		return err
 	}, func(s string) {

@@ -3,9 +3,9 @@ package service
 import (
 	"github.com/lishimeng/app-starter"
 	persistence "github.com/lishimeng/go-orm"
-	"github.com/lishimeng/owl/internal/db/model"
-	"github.com/lishimeng/owl/internal/db/repo"
-	"github.com/lishimeng/owl/internal/messager/msg"
+	"github.com/lishimeng/owl-messager/internal/db/model"
+	"github.com/lishimeng/owl-messager/internal/db/repo"
+	"github.com/lishimeng/owl-messager/internal/messager/msg"
 )
 
 func CreateApnsMessage(sender model.ApnsSenderInfo,
@@ -14,7 +14,7 @@ func CreateApnsMessage(sender model.ApnsSenderInfo,
 
 	err = app.GetOrm().Transaction(func(ctx persistence.TxContext) (e error) {
 		// create message
-		m, e = repo.CreateMessage(ctx, subject, msg.Apns)
+		m, e = repo.CreateMessage(ctx, sender.Org, subject, msg.Apns)
 		if e != nil {
 			return
 		}

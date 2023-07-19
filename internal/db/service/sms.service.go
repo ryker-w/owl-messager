@@ -3,16 +3,16 @@ package service
 import (
 	"github.com/lishimeng/app-starter"
 	persistence "github.com/lishimeng/go-orm"
-	"github.com/lishimeng/owl/internal/db/model"
-	"github.com/lishimeng/owl/internal/db/repo"
-	"github.com/lishimeng/owl/internal/messager/msg"
+	"github.com/lishimeng/owl-messager/internal/db/model"
+	"github.com/lishimeng/owl-messager/internal/db/repo"
+	"github.com/lishimeng/owl-messager/internal/messager/msg"
 )
 
-func CreateSmsMessage(template model.SmsTemplateInfo, templateParams string,
+func CreateSmsMessage(org int, template model.SmsTemplateInfo, templateParams string,
 	receiver string) (m model.MessageInfo, err error) {
 	err = app.GetOrm().Transaction(func(ctx persistence.TxContext) (e error) {
 		// create message
-		m, e = repo.CreateMessage(ctx, template.Name, msg.Sms)
+		m, e = repo.CreateMessage(ctx, org, template.Name, msg.Sms)
 		if e != nil {
 			return
 		}
@@ -113,7 +113,7 @@ func UpdateSsi(code, vendor, config string, defaultSender int) (m model.SmsSende
 	var cols []string
 	m.Default = defaultSender
 	cols = append(cols, "Default")
-	m.Config = config
+	m.Config = model.SenderConfig(config)
 	cols = append(cols, "Config")
 	m, err = repo.UpdateSmsSenderInfo(m, cols...)
 	return

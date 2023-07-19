@@ -3,7 +3,7 @@ package repo
 import (
 	"github.com/lishimeng/app-starter"
 	persistence "github.com/lishimeng/go-orm"
-	"github.com/lishimeng/owl/internal/db/model"
+	"github.com/lishimeng/owl-messager/internal/db/model"
 )
 
 // GetSmsSenderByCode 查询短信发送账号
@@ -99,7 +99,7 @@ func SmsSenderDisable(id int) (err error) {
 func CreateSmslSenderInfo(code, vendor, config string, defaultSender int) (m model.SmsSenderInfo, err error) {
 	m.Status = 1
 	m.Vendor = model.SmsVendor(vendor)
-	m.Config = config
+	m.Config = model.SenderConfig(config)
 	m.Code = code
 	m.Default = defaultSender
 	_, err = app.GetOrm().Context.Insert(&m)
