@@ -1,12 +1,23 @@
 package sdk
 
+import (
+	"errors"
+	"github.com/lishimeng/owl-messager/utils"
+)
+
 type Client interface {
 	SendMail(req MailRequest) (resp Response, err error)
 	SendSms(req SmsRequest) (resp Response, err error)
 	SendApns(req ApnsRequest) (resp Response, err error)
+	Templates(req TemplateRequest) (resp TemplateResponse, err error)
 }
 
 type Option func(*messageClient)
+
+var (
+	InnerServerErr = errors.New("500")
+	NotFoundErr    = errors.New("404")
+)
 
 var (
 	debugEnable = false
@@ -15,6 +26,7 @@ var (
 // Debug 输出sdk中的log
 func Debug(enable bool) {
 	debugEnable = enable
+	utils.DebugEnable = enable
 }
 
 func WithHost(host string) Option {

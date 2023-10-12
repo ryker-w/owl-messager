@@ -2,24 +2,26 @@ package model
 
 import (
 	"github.com/lishimeng/app-starter"
+	"github.com/lishimeng/owl-messager/pkg/msg"
 	"time"
 )
 
 type MessageHeader struct {
 	app.TenantPk
-	app.TableChangeInfo
+
 	// 消息ID(外键)
 	MessageId int `orm:"column(message_id)"`
+	app.TableChangeInfo
 }
 
-// 消息主表
+// MessageInfo 消息主表
 type MessageInfo struct {
 	app.TenantPk
 	app.TableChangeInfo
-	Category     int       `orm:"column(category)"`
-	Subject      string    `orm:"column(subject)"`
-	Priority     int       `orm:"column(priority);null"`
-	NextSendTime time.Time `orm:"column(next_send_time);null"`
+	Category     msg.MessageCategory `orm:"column(category)"`
+	Subject      string              `orm:"column(subject)"`
+	Priority     int                 `orm:"column(priority);null"`
+	NextSendTime time.Time           `orm:"column(next_send_time);null"`
 }
 
 const (

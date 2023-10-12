@@ -1,5 +1,10 @@
 package sdk
 
+import (
+	"github.com/lishimeng/owl-messager/pkg"
+	"github.com/lishimeng/owl-messager/pkg/msg"
+)
+
 // MailRequest 邮件服务请求参数
 type MailRequest struct {
 	Template string `json:"template"` // 模板
@@ -23,4 +28,16 @@ type ApnsRequest struct {
 	TemplateParam interface{} `json:"params"`             // 参数
 	Title         string      `json:"subject,omitempty"`  // 标题
 	Receiver      string      `json:"receiver"`           // 接收者，多个时用逗号分隔
+}
+
+// TemplateRequest 模板请求参数
+type TemplateRequest struct {
+	PageNo   int
+	PageSize int
+	Category msg.MessageCategory
+}
+
+type TemplateResponse struct {
+	Response
+	Data []pkg.TemplateInfo `json:"items,omitempty"`
 }
